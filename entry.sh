@@ -176,6 +176,7 @@ if [ ${ACTION} == "test" ]; then
   echo namespace: $ns
   all_pod_name=`kubectl get pods --no-headers -o custom-columns=":metadata.name" -n ${ns}`
   ALL_IP=""
+  # 获取之前部署的rocketmq集群中的pod信息，按照pod:ip的格式打印出来
   for pod in $all_pod_name;
   do
       if [ ! -z `echo "${pod}" | grep "test-${env_uuid}"` ]; then
@@ -204,11 +205,13 @@ if [ ${ACTION} == "test" ]; then
 
   sleep 5
 
+  # 状态为空，可能是因为 Pod 尚未完全创建，设置为Pending
   pod_status=`kubectl get pod ${test_pod_name} --template={{.status.phase}} -n ${ns}`
   if [ -z "$pod_status" ]; then
       pod_status="Pending"
   fi
 
+  # Pending和Running表示Pod还没运行结束
   while [ "${pod_status}" == "Pending" ] || [ "${pod_status}" == "Running" ]
   do
       echo waiting for ${test_pod_name} test done...
@@ -220,7 +223,8 @@ if [ ${ACTION} == "test" ]; then
       test_done=`kubectl exec -i ${test_pod_name} -n ${ns} -- ls /root | grep testdone`
       if [ ! -z "$test_done" ]; then
         echo "Test status: test done"
-          if [ ! -d "./test_report" ]; then
+        # -d "./test_report" 用于检查 ./test_report 是否存在且是一个目录。避免重复收集测试报告
+          if [ ! -d "./test_report" ]; then 
             echo "Copy test reports"
             kubectl cp --retries=10 ${test_pod_name}:/root/testlog.txt testlog.txt -n ${ns}
             mkdir -p test_report
@@ -228,7 +232,7 @@ if [ ${ACTION} == "test" ]; then
             kubectl cp --retries=10 ${test_pod_name}:/root/code/${TEST_CODE_PATH}/target/surefire-reports/. . -n ${ns}
             rm -rf *.txt
             ls
-            cd -
+            cd - # 切换到前一个工作目录
           fi
       fi
   done
@@ -321,6 +325,7 @@ if [ ${ACTION} == "clean" ]; then
     vela env delete ${DELETE_ENV} -y
     sleep 3
     kubectl delete namespace ${DELETE_ENV} --wait=false
+    # 移除 finalizers 字段，可以强制删除命名空间
     kubectl get ns ${DELETE_ENV} -o json | jq '.spec.finalizers=[]' > ns-without-finalizers.json
     cat ns-without-finalizers.json
     curl -X PUT http://localhost:8001/api/v1/namespaces/${DELETE_ENV}/finalize -H "Content-Type: application/json" --data-binary @ns-without-finalizers.json
