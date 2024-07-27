@@ -87,6 +87,7 @@ if [ ${ACTION} == "deploy" ]; then
 
   echo ${VERSION}: ${env_uuid} deploy start
 
+  # 在管控集群创建命名空间
   vela env init ${env_uuid} --namespace ${env_uuid}
 
   export VELA_APP_NAME=${env_uuid}
