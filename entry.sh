@@ -91,19 +91,26 @@ if [ ${ACTION} == "deploy" ]; then
   vela env init ${env_uuid} --namespace ${env_uuid}
 
   export VELA_APP_NAME=${env_uuid}
+
+  # 使用envsubst将./velaapp.yaml 文件中的占位符替换成环境变量，并将结果输出到一个新的文件 velaapp-${REPO_NAME}.yaml 
   envsubst < ./velaapp.yaml > velaapp-${REPO_NAME}.yaml
   cat velaapp-${REPO_NAME}.yaml
 
+  # 设置应用环境
   vela env set ${env_uuid}
+
+  # 部署应用，类似于kubectl apply -f 
   vela up -f "velaapp-${REPO_NAME}.yaml"
 
   app=${env_uuid}
 
+  # 获取应用状态并输出
   status=`vela status ${app} -n ${app}`
   echo $status
   res=`echo $status | grep "Create helm release successfully"`
   let count=0
-  while [ -z "$res" ]
+  # 在部署应用后不断检查应用的状态，直到部署成功或超时
+  while [ -z "$res" ] # 检查变量 res 是否为空。res为空 => ture
   do
       if [ $count -gt 240 ]; then
         echo "env ${app} deploy timeout..."
@@ -111,7 +118,7 @@ if [ ${ACTION} == "deploy" ]; then
       fi
       echo "waiting for env ${app} ready..."
       sleep 5
-      status=`vela status ${app} -n ${app}`
+      status=`vela status ${app} -n ${app}` # status 更新会被重新输出，这样每次会输出最新的status
       stopped=`echo $status | grep "not found"`
       if [ ! -z "$stopped" ]; then
           echo "env ${app} deploy stopped..."
