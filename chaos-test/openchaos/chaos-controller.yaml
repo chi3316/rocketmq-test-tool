@@ -49,4 +49,3 @@ spec:
           name: rocketmq-configmap
       - name: report-volume
         emptyDir: {}
-

@@ -120,12 +120,20 @@ check_helm_release_status() {
 
 # 检查所有 Pods 的状态
 check_pods_status() {
-  pods=$(kubectl get pods -n ${env_uuid} -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}')
-  if [[ ${pods} == *"False"* || ${pods} == "" ]]; then
-    return 1
-  else
-    return 0
-  fi
+  pods_status=$(kubectl get pods -n ${env_uuid} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}')
+  
+  for pod in $pods_status; do
+    pod_name=$(echo $pod | awk '{print $1}')
+    pod_phase=$(echo $pod | awk '{print $2}')
+    pod_ready=$(echo $pod | awk '{print $3}')
+    
+    if [ "$pod_phase" != "Running" ] || [ "$pod_ready" != "True" ]; then
+      echo "Pod $pod_name is not ready (Phase: $pod_phase, Ready: $pod_ready)"
+      return 1
+    fi
+  done
+  
+  return 0
 }
 
 # 等待 Helm release 和 Pods 都准备好
@@ -353,39 +361,93 @@ if [ ${ACTION} == "chaos-test" ]; then
         echo "Failed to start crond"
         exit 1
     fi
-    
-    ns=${env_uuid}
-    echo namespace: $ns
-    all_pod_name=`kubectl get pods --no-headers -o custom-columns=":metadata.name" -n ${ns}`
-    ALL_IP=""
-    for pod in $all_pod_name;
-    do
-        label=`kubectl get pod ${pod} --output="jsonpath={.metadata.labels.app\.kubernetes\.io/name}" -n ${ns}`
-        pod_port=`kubectl get -o json services --selector="app.kubernetes.io/name=${label}" -n ${ns} | jq -r '.items[].spec.ports[].port'`
-        echo "${pod}: ${pod_port}"
-        for port in ${pod_port};
-        do
-            kubectl port-forward ${pod} ${port}:${port} -n ${ns} &
-            res=$?
-            if [ ${res} -ne 0 ]; then
-              echo "kubectl port-forward error: ${pod} ${port}:${port}"
-              exit ${res}
-            fi
-        done
-        ALL_IP=${pod}:"127.0.0.1",${ALL_IP}
-        sleep 3
-    done
 
-    # 使用vela部署chaos-mesh
-    # 先用helm吧
+    # 使用helm部署chaos-mesh
     helm repo add chaos-mesh https://charts.chaos-mesh.org
     kubectl create ns chaos-mesh
     helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.6.3
     kubectl get pod -n chaos-mesh
+
+    # 检查 Chaos Mesh Pod 状态
+    check_chaos_mesh_pods_status() {
+      pods_status=$(kubectl get pods -n chaos-mesh -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}')
+      
+      for pod in $pods_status; do
+        pod_name=$(echo $pod | awk '{print $1}')
+        pod_phase=$(echo $pod | awk '{print $2}')
+        pod_ready=$(echo $pod | awk '{print $3}')
+        
+        if [ "$pod_phase" != "Running" ] || [ "$pod_ready" != "True" ]; then
+          echo "Pod $pod_name is not ready (Phase: $pod_phase, Ready: $pod_ready)"
+          return 1
+        fi
+      done
+      
+      return 0
+    }
+
+    # 等待 Chaos Mesh Pods 都准备好
+    count=0
+    while true; do
+      if check_chaos_mesh_pods_status; then
+        echo "Chaos Mesh Pods are ready"
+        break
+      fi
+
+      if [ $count -gt 240 ]; then
+        echo "Chaos Mesh deployment timeout..."
+        exit 1
+      fi
+
+      echo "Waiting for Chaos Mesh Pods to be ready..."
+      sleep 5
+      let count=count+1
+    done
     
     # 部署一个测试Pod：openchaos-controller
+    # 创建 ConfigMap
+    kubectl apply -f /root/chaos-test/openchaos/driver-rocketmq.yaml -n ${env_uuid}
+
+    # 部署 openchaos-controller Pod
+    kubectl apply -f /root/chaos-test/openchaos/chaos-controller.yaml -n ${env_uuid}
+    sleep 10
+    
+    test_pod_name=$(kubectl get pods -n ${env_uuid} -l app=openchaos-controller -o jsonpath='{.items[0].metadata.name}')
+    
+    # 检查 openchaos-controller Pod 状态
+    check_test_pod_status() {
+      pod_status=$(kubectl get pod ${test_pod_name} -n ${env_uuid} --template={{.status.phase}})
+      if [ -z "$pod_status" ]; then
+        pod_status="Pending"
+      fi
+      if [[ "${pod_status}" == "Pending" || "${pod_status}" == "Running" ]]; then
+        return 1
+      else
+        return 0
+      fi
+    }
+
+    # 等待 openchaos-controller Pod 准备好
+    count=0
+    while true; do
+      if check_test_pod_status; then
+        echo "openchaos-controller Pod is ready"
+        break
+      fi
+
+      if [ $count -gt 240 ]; then
+        echo "openchaos-controller Pod deployment timeout..."
+        exit 1
+      fi
+
+      echo "Waiting for openchaos-controller Pod to be ready..."
+      sleep 5
+      let count=count+1
+    done
 
     # 执行启动脚本
+    mkdir /root/chaos-test/report
+    sh /root/chaos-test/start-cron.sh /root/chaos-test/fault.yaml /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name"
 
 fi
 

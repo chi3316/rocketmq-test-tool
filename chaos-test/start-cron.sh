@@ -3,12 +3,12 @@ CHAOSMESH_YAML_FILE=$1
 LOG_FILE=$2
 LIMIT_TIME=$3
 POD_NAME=$4
-CRON=$5
+CRON='* * * * *'
 
 cleanup() {
   echo "Performing cleanup..."
   crontab -r
-  kubectl cp $POD_NAME:/chaos-framework/report  ~/rocketmq-chaos-test/chaos-test-report/
+  kubectl cp $POD_NAME:/chaos-framework/report  /root/chaos-test/report
   kubectl delete pod $POD_NAME
   echo "Cleanup completed."
 }
