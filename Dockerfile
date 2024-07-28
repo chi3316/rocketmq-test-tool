@@ -22,7 +22,8 @@ RUN yum update -y && \
     yum install -y jq cronie && \
     yum clean all
 
-COPY ./test-runner/ /root/chaos-test
+RUN mkdir /root/chaos-test
+COPY ./chaos-test/ /root/chaos-test
 
 # Copies your code file from your action repository to the filesystem path `/` of the container
 COPY entry.sh /entry.sh
