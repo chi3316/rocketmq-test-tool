@@ -120,7 +120,7 @@ check_helm_release_status() {
 
 # 检查所有 Pods 的状态
 check_pods_status() {
-  not_ready_pods=$(kubectl get pods -n $NAMESPACE --no-headers | grep -v "Running" | wc -l)
+  not_ready_pods=$(kubectl get pods -n ${env_uuid} --no-headers | grep -v "Running" | wc -l)
   if [ "$not_ready_pods" -ne 0 ]; then
     return 0
   else 
