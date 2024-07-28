@@ -23,13 +23,16 @@ spec:
           imagePullPolicy: {{ .Values.nameserver.image.pullPolicy | quote }}
           {{- end }}
           command: [ "/bin/sh" ]
-          args: [ "-c", "./mqnamesrv -c /home/rocketmq/config/namesrv.p" ]
+          args: [ "-c", "./mqnamesrv-ssh -c /home/rocketmq/config/namesrv.p" ]
           env:
             - name: JAVA_HEAP_SIZE
               value: {{ .Values.nameserver.heapSize }}
           ports:
             - name: nameserver
               containerPort: {{ include "rocketmq-nameserver.port" . }}
+              protocol: TCP
+            - name: ssh
+              containerPort: 2222
               protocol: TCP
           startupProbe:
             tcpSocket:

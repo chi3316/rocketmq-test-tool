@@ -25,7 +25,7 @@ spec:
           imagePullPolicy: {{ $.Values.broker.image.pullPolicy }}
         {{- end }}
           command: [ "/bin/sh" ]
-          args: [ "-c", "./mqbroker -c /home/rocketmq/conf/$(POD_NAME)" ]
+          args: [ "-c", "./mqbroker-ssh -c /home/rocketmq/conf/$(POD_NAME)" ]
           env:
             - name: POD_NAME
               valueFrom:
@@ -40,6 +40,9 @@ spec:
             - name: NAMESRV_ADDR
               value: {{ include "rocketmq-nameserver.fullname" . }}:9876
           ports:
+            - name: ssh-port
+              containerPort: 2222
+              protocol: TCP
             - name: broker
               containerPort: 10911
               protocol: TCP

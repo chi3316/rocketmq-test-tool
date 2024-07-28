@@ -6,8 +6,8 @@ nameserver:
   replicaCount: 1
   image:
     pullPolicy: IfNotPresent
-    repository: "apache/rocketmq"
-    tag: "latest"
+    repository: "registry.cn-guangzhou.aliyuncs.com/cc-aliyun/rocketmq-ssh"
+    tag: "v2.2"
 
   imagePullSecrets: [ ]
   nameOverride: "nameserver"
@@ -82,8 +82,8 @@ proxy:
   replicaCount: 1
   image:
     pullPolicy: IfNotPresent
-    repository: "apache/rocketmq"
-    tag: "latest"
+    repository: "registry.cn-guangzhou.aliyuncs.com/cc-aliyun/rocketmq-ssh"
+    tag: "v2.2"
 
   imagePullSecrets: [ ]
   nameOverride: "proxy"
@@ -153,11 +153,11 @@ proxy:
 
 
 broker:
-  replicaCount: 1
+  replicaCount: 2
   image:
     pullPolicy: IfNotPresent
-    repository: "apache/rocketmq"
-    tag: "latest"
+    repository: "registry.cn-guangzhou.aliyuncs.com/cc-aliyun/rocketmq-ssh"
+    tag: "v2.2"
 
   partition: 0
   persistence:
@@ -192,7 +192,7 @@ broker:
   resources:
     limits:
       cpu: 2
-      memory: 4Gi
+      memory: 6Gi
     requests:
       cpu: 2
       memory: 4Gi
@@ -204,12 +204,11 @@ broker:
 controller:
   nameOverride: "controller"
   fullnameOverride: ""
-  replicas: 3
+  replicas: 2
   image:
-    registry: docker.io
-    repository: "apache/rocketmq"
-    tag: "latest"
-    pullPolicy: IfNotPresent
+    repository: "registry.cn-guangzhou.aliyuncs.com/cc-aliyun/rocketmq-ssh"
+    tag: "v2.2"
+    pullPolcy: IfNotPresent
   service:
     port: 9878
     internalport: 9888
