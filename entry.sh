@@ -105,7 +105,7 @@ if [ ${ACTION} == "deploy" ]; then
   # vela env set ${env_uuid}
   # vela up -f "velaapp-${REPO_NAME}.yaml"
   kubectl create ns ${env_uuid}
-  helm install rocketmq -n ${env_uuid}  https://github.com/chi3316/rocketmq-docker/tree/chaos-test/rocketmq-k8s-helm
+  helm install rocketmq -n ${env_uuid} /root/chaos-test/rocketmq-k8s-helm/
   app="rocketmq"
 
 # 检查 Helm release 状态
