@@ -288,6 +288,29 @@ if [ ${ACTION} == "test_local" ]; then
   exit ${exit_code}
 fi
 
+if [ ${ACTION} == "chaos-test"]; then
+    echo "************************************"
+    echo "*         Chaos test...            *"
+    echo "************************************"
+    # 启动crond
+    crond -n
+    # 检查集群的CRI
+    nodes=$(kubectl get nodes --no-headers -o custom-columns=":metadata.name")
+
+    # 遍历每个节点并显示其详细信息
+    for node in $nodes; do
+        echo "Describing node: $node"
+        kubectl describe node $node
+        echo "-----------------------------------"
+    done
+    # 使用vela部署chaos-mesh
+
+    # 部署一个测试Pod：openchaos-controller
+
+    # 执行启动脚本
+
+fi
+
 if [ ${ACTION} == "clean" ]; then
     echo "************************************"
     echo "*       Delete app and env...      *"
