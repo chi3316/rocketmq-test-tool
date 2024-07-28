@@ -337,7 +337,7 @@ if [ ${ACTION} == "test_local" ]; then
   exit ${exit_code}
 fi
 
-if [ ${ACTION} == "chaos-test"]; then
+if [ ${ACTION} == "chaos-test" ]; then
     echo "************************************"
     echo "*         Chaos test...            *"
     echo "************************************"
@@ -366,7 +366,7 @@ if [ ${ACTION} == "chaos-test"]; then
         ALL_IP=${pod}:"127.0.0.1",${ALL_IP}
         sleep 3
     done
-    
+
     # 使用vela部署chaos-mesh
     # 先用helm吧
     helm repo add chaos-mesh https://charts.chaos-mesh.org
