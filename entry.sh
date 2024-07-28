@@ -53,6 +53,12 @@ kube_config=$(echo "${ASK_CONFIG}")
 echo "${kube_config}" > ${HOME}/.kube/config
 export KUBECONFIG="${HOME}/.kube/config"
 
+# 先用helm
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+helm version
+
 VELA_APP_TEMPLATE='
 apiVersion: core.oam.dev/v1beta1
 kind: Application
@@ -292,6 +298,7 @@ if [ ${ACTION} == "chaos-test"]; then
     echo "************************************"
     echo "*         Chaos test...            *"
     echo "************************************"
+
     # 启动crond
     crond -n
     # 检查集群的CRI
@@ -305,10 +312,6 @@ if [ ${ACTION} == "chaos-test"]; then
     done
     # 使用vela部署chaos-mesh
     # 先用helm吧
-    curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-    chmod 700 get_helm.sh
-    ./get_helm.sh
-    helm version
     helm repo add chaos-mesh https://charts.chaos-mesh.org
     kubectl create ns chaos-mesh
     helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.6.3
