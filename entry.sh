@@ -458,6 +458,8 @@ if [ ${ACTION} == "clean" ]; then
 
     DELETE_ENV=${env}
 
+    helm uninstall rocketmq
+    helm uninstall chaos-mesh
     # vela env delete ${DELETE_ENV} -y
     sleep 3
     kubectl delete namespace ${DELETE_ENV} --wait=false
