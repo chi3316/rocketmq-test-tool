@@ -120,27 +120,20 @@ check_helm_release_status() {
 
 # 检查所有 Pods 的状态
 check_pods_status() {
-  pods_status=$(kubectl get pods -n ${env_uuid} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}')
-  
-  for pod in $pods_status; do
-    pod_name=$(echo $pod | awk '{print $1}')
-    pod_phase=$(echo $pod | awk '{print $2}')
-    pod_ready=$(echo $pod | awk '{print $3}')
-    
-    if [ "$pod_phase" != "Running" ] || [ "$pod_ready" != "True" ]; then
-      echo "Pod $pod_name is not ready (Phase: $pod_phase, Ready: $pod_ready)"
-      return 1
-    fi
-  done
-  
-  return 0
+  not_ready_pods=$(kubectl get pods -n $NAMESPACE --no-headers | grep -v "Running" | wc -l)
+  if [ "$not_ready_pods" -ne 0 ]; then
+    return 0
+  else 
+    return 1
+  fi
 }
 
 # 等待 Helm release 和 Pods 都准备好
-count=0
+let count=0
 while true; do
   if check_helm_release_status && check_pods_status; then
     echo "Helm release and all Pods are ready"
+    kubectl get pods -n ${env_uuid}
     break
   fi
 
@@ -151,7 +144,7 @@ while true; do
 
   echo "Waiting for Helm release and Pods to be ready..."
   sleep 5
-  let count=count+1
+  let count=${count}+1
 done
   # app=${env_uuid}
 
@@ -366,31 +359,23 @@ if [ ${ACTION} == "chaos-test" ]; then
     helm repo add chaos-mesh https://charts.chaos-mesh.org
     kubectl create ns chaos-mesh
     helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.6.3
-    kubectl get pod -n chaos-mesh
-
+    
     # 检查 Chaos Mesh Pod 状态
     check_chaos_mesh_pods_status() {
-      pods_status=$(kubectl get pods -n chaos-mesh -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}')
-      
-      for pod in $pods_status; do
-        pod_name=$(echo $pod | awk '{print $1}')
-        pod_phase=$(echo $pod | awk '{print $2}')
-        pod_ready=$(echo $pod | awk '{print $3}')
-        
-        if [ "$pod_phase" != "Running" ] || [ "$pod_ready" != "True" ]; then
-          echo "Pod $pod_name is not ready (Phase: $pod_phase, Ready: $pod_ready)"
-          return 1
-        fi
-      done
-      
-      return 0
+      not_ready_pods=$(kubectl get pods -n chaos-mesh --no-headers | grep -v "Running" | wc -l)
+      if [ "$not_ready_pods" -ne 0 ]; then
+        return 0
+      else 
+        return 1
+      fi
     }
 
     # 等待 Chaos Mesh Pods 都准备好
-    count=0
+    let count=0
     while true; do
       if check_chaos_mesh_pods_status; then
-        echo "Chaos Mesh Pods are ready"
+        echo "Chaos Mesh Pods are ready" --no-headers
+        kubectl get pods -n chaos-mesh
         break
       fi
 
@@ -401,7 +386,7 @@ if [ ${ACTION} == "chaos-test" ]; then
 
       echo "Waiting for Chaos Mesh Pods to be ready..."
       sleep 5
-      let count=count+1
+      let count=${count}+1
     done
     
     # 部署一个测试Pod：openchaos-controller
@@ -428,7 +413,7 @@ if [ ${ACTION} == "chaos-test" ]; then
     }
 
     # 等待 openchaos-controller Pod 准备好
-    count=0
+    let count=0
     while true; do
       if check_test_pod_status; then
         echo "openchaos-controller Pod is ready"
@@ -442,7 +427,7 @@ if [ ${ACTION} == "chaos-test" ]; then
 
       echo "Waiting for openchaos-controller Pod to be ready..."
       sleep 5
-      let count=count+1
+      let count=${count}+1
     done
 
     # 执行启动脚本
