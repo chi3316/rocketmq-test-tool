@@ -344,15 +344,29 @@ if [ ${ACTION} == "chaos-test"]; then
 
     # 启动crond
     crond -n
-    # 检查集群的CRI
-    nodes=$(kubectl get nodes --no-headers -o custom-columns=":metadata.name")
-
-    # 遍历每个节点并显示其详细信息
-    for node in $nodes; do
-        echo "Describing node: $node"
-        kubectl describe node $node
-        echo "-----------------------------------"
+    
+    ns=${env_uuid}
+    echo namespace: $ns
+    all_pod_name=`kubectl get pods --no-headers -o custom-columns=":metadata.name" -n ${ns}`
+    ALL_IP=""
+    for pod in $all_pod_name;
+    do
+        label=`kubectl get pod ${pod} --output="jsonpath={.metadata.labels.app\.kubernetes\.io/name}" -n ${ns}`
+        pod_port=`kubectl get -o json services --selector="app.kubernetes.io/name=${label}" -n ${ns} | jq -r '.items[].spec.ports[].port'`
+        echo "${pod}: ${pod_port}"
+        for port in ${pod_port};
+        do
+            kubectl port-forward ${pod} ${port}:${port} -n ${ns} &
+            res=$?
+            if [ ${res} -ne 0 ]; then
+              echo "kubectl port-forward error: ${pod} ${port}:${port}"
+              exit ${res}
+            fi
+        done
+        ALL_IP=${pod}:"127.0.0.1",${ALL_IP}
+        sleep 3
     done
+    
     # 使用vela部署chaos-mesh
     # 先用helm吧
     helm repo add chaos-mesh https://charts.chaos-mesh.org
