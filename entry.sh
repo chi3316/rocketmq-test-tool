@@ -343,7 +343,16 @@ if [ ${ACTION} == "chaos-test" ]; then
     echo "************************************"
 
     # 启动crond
-    crond -n
+    crond
+
+    # 检查 crond 是否成功启动
+    if ps aux | grep '[c]rond' > /dev/null
+    then
+        echo "crond is running"
+    else
+        echo "Failed to start crond"
+        exit 1
+    fi
     
     ns=${env_uuid}
     echo namespace: $ns
