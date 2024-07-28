@@ -96,38 +96,78 @@ if [ ${ACTION} == "deploy" ]; then
 
   echo ${VERSION}: ${env_uuid} deploy start
 
-  vela env init ${env_uuid} --namespace ${env_uuid}
+  # vela env init ${env_uuid} --namespace ${env_uuid}
 
   export VELA_APP_NAME=${env_uuid}
   envsubst < ./velaapp.yaml > velaapp-${REPO_NAME}.yaml
   cat velaapp-${REPO_NAME}.yaml
 
-  vela env set ${env_uuid}
-  vela up -f "velaapp-${REPO_NAME}.yaml"
+  # vela env set ${env_uuid}
+  # vela up -f "velaapp-${REPO_NAME}.yaml"
+  kubectl create ns ${env_uuid}
+  helm install rocketmq -n ${env_uuid}  https://github.com/chi3316/rocketmq-docker/tree/chaos-test/rocketmq-k8s-helm
+  app="rocketmq"
 
-  app=${env_uuid}
+# 检查 Helm release 状态
+check_helm_release_status() {
+  status=$(helm status ${app} -n ${env_uuid} | grep "STATUS:" | awk '{print $2}')
+  if [ "${status}" == "deployed" ]; then
+    return 0
+  else
+    return 1
+  fi
+}
 
-  status=`vela status ${app} -n ${app}`
-  echo $status
-  res=`echo $status | grep "Create helm release successfully"`
-  let count=0
-  while [ -z "$res" ]
-  do
-      if [ $count -gt 240 ]; then
-        echo "env ${app} deploy timeout..."
-        exit 1
-      fi
-      echo "waiting for env ${app} ready..."
-      sleep 5
-      status=`vela status ${app} -n ${app}`
-      stopped=`echo $status | grep "not found"`
-      if [ ! -z "$stopped" ]; then
-          echo "env ${app} deploy stopped..."
-          exit 1
-      fi
-      res=`echo $status | grep "Create helm release successfully"`
-      let count=${count}+1
-  done
+# 检查所有 Pods 的状态
+check_pods_status() {
+  pods=$(kubectl get pods -n ${env_uuid} -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}')
+  if [[ ${pods} == *"False"* || ${pods} == "" ]]; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+# 等待 Helm release 和 Pods 都准备好
+count=0
+while true; do
+  if check_helm_release_status && check_pods_status; then
+    echo "Helm release and all Pods are ready"
+    break
+  fi
+
+  if [ $count -gt 240 ]; then
+    echo "Deployment timeout..."
+    exit 1
+  fi
+
+  echo "Waiting for Helm release and Pods to be ready..."
+  sleep 5
+  let count=count+1
+done
+  # app=${env_uuid}
+
+  # status=`vela status ${app} -n ${app}`
+  # echo $status
+  # res=`echo $status | grep "Create helm release successfully"`
+  # let count=0
+  # while [ -z "$res" ]
+  # do
+  #     if [ $count -gt 240 ]; then
+  #       echo "env ${app} deploy timeout..."
+  #       exit 1
+  #     fi
+  #     echo "waiting for env ${app} ready..."
+  #     sleep 5
+  #     status=`vela status ${app} -n ${app}`
+  #     stopped=`echo $status | grep "not found"`
+  #     if [ ! -z "$stopped" ]; then
+  #         echo "env ${app} deploy stopped..."
+  #         exit 1
+  #     fi
+  #     res=`echo $status | grep "Create helm release successfully"`
+  #     let count=${count}+1
+  # done
 fi
 
 TEST_POD_TEMPLATE='
@@ -319,7 +359,7 @@ if [ ${ACTION} == "chaos-test"]; then
     kubectl create ns chaos-mesh
     helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.6.3
     kubectl get pod -n chaos-mesh
-
+    
     # 部署一个测试Pod：openchaos-controller
 
     # 执行启动脚本
@@ -333,7 +373,7 @@ if [ ${ACTION} == "clean" ]; then
 
     env=${env_uuid}
 
-    vela delete ${env} -n ${env} -y
+    # vela delete ${env} -n ${env} -y
     all_pod_name=`kubectl get pods --no-headers -o custom-columns=":metadata.name" -n ${env}`
     for pod in $all_pod_name;
     do
@@ -348,7 +388,7 @@ if [ ${ACTION} == "clean" ]; then
 
     DELETE_ENV=${env}
 
-    vela env delete ${DELETE_ENV} -y
+    # vela env delete ${DELETE_ENV} -y
     sleep 3
     kubectl delete namespace ${DELETE_ENV} --wait=false
     kubectl get ns ${DELETE_ENV} -o json | jq '.spec.finalizers=[]' > ns-without-finalizers.json
