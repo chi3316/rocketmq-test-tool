@@ -486,7 +486,7 @@ if [ ${ACTION} == "chaos-test" ]; then
     done
     
     export ns
-    envsubst < ./testpod.yaml > ./network-chaos.yaml
+    envsubst < ./chaos-mesh-fault.yaml > ./network-chaos.yaml
     fault_file="$(pwd)/network-chaos.yaml"
     # 执行启动脚本
     mkdir -p chaos-test-report
