@@ -120,7 +120,7 @@ check_helm_release_status() {
 
 # 检查所有 Pods 的状态
 check_pods_status() {
-  pods_status=$(kubectl get pods -n ${NAMESPACE} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')
+  pods_status=$(kubectl get pods -n ${env_uuid} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')
   
   all_running=true
   
