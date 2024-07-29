@@ -10,7 +10,7 @@ CRON='* * * * *'
 cleanup() {
   echo "Performing cleanup..."
   crontab -r
-  kubectl cp -n ${ns} $POD_NAME:/chaos-framework/report "$REPORT_DIR"
+  kubectl cp -n ${ns} --container=openchaos-controller $POD_NAME:/chaos-framework/report "$REPORT_DIR"
   ls $REPORT_DIR
   kubectl delete deployment openchaos-controller -n ${ns}
   kubectl delete pod $POD_NAME -n ${ns}

@@ -355,6 +355,29 @@ if [ ${ACTION} == "test_local" ]; then
   exit ${exit_code}
 fi
 
+CHAOS_MESH_FAULT_TEMPLATE='
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-delay
+spec:
+  action: delay
+  mode: fixed
+  value: '2'
+  selector:
+    namespaces:
+      - ${ns}
+    labelSelectors:
+      'app.kubernetes.io/name': 'broker'
+      'app.kubernetes.io/instance': 'rocketmq'
+  delay:
+    latency: '100ms'
+  duration: '30s'
+'
+
+echo -e "${CHAOS_MESH_FAULT_TEMPLATE}" > ./chaos-mesh-fault.yaml
+sed -i '1d' ./chaos-mesh-fault.yaml
+
 if [ ${ACTION} == "chaos-test" ]; then
     echo "************************************"
     echo "*         Chaos test...            *"
@@ -461,12 +484,15 @@ if [ ${ACTION} == "chaos-test" ]; then
       sleep 5
       let count=${count}+1
     done
-
+    
+    export ns
+    envsubst < ./testpod.yaml > ./network-chaos.yaml
+    fault_file="$(pwd)/network-chaos.yaml"
     # 执行启动脚本
     mkdir -p chaos-test-report
     REPORT_DIR="$(pwd)/chaos-test-report"
     cd /root/chaos-test/
-    sh /root/chaos-test/start-cron.sh /root/chaos-test/fault.yaml /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "${env_uuid}" "$REPORT_DIR"
+    sh /root/chaos-test/start-cron.sh ${fault_file} /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "${env_uuid}" "$REPORT_DIR"
     cd -
 
 fi
