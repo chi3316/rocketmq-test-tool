@@ -87,6 +87,7 @@ echo -e "${VELA_APP_TEMPLATE}" > ./velaapp.yaml
 sed -i '1d' ./velaapp.yaml
 
 env_uuid=${REPO_NAME}-${GITHUB_RUN_ID}
+chaos_mesh_ns="chaos-mesh-${GITHUB_RUN_ID}"
 
 
 if [ ${ACTION} == "deploy" ]; then
@@ -120,22 +121,24 @@ check_helm_release_status() {
 
 # 检查所有 Pods 的状态
 check_pods_status() {
-  pods_status=$(kubectl get pods -n ${env_uuid} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')
+  pods_status=$(kubectl get pods -n ${env_uuid} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}')
   
-  all_running=true
+  all_ready=true
   
   echo "$pods_status" > /tmp/pods_status.txt
+  
   while read -r pod; do
     pod_name=$(echo "$pod" | awk '{print $1}')
     pod_phase=$(echo "$pod" | awk '{print $2}')
+    pod_ready=$(echo "$pod" | awk '{print $3}')
     
-    if [ "$pod_phase" != "Running" ]; then
-      echo "Pod $pod_name is not running (Phase: $pod_phase)"
-      all_running=false
+    if [ "$pod_phase" != "Running" ] || [ "$pod_ready" != "True" ]; then
+      echo "Pod $pod_name is not ready (Phase: $pod_phase, Ready: $pod_ready)"
+      all_ready=false
     fi
   done < /tmp/pods_status.txt
   
-  if [ "$all_running" = "true" ]; then
+  if [ "$all_ready" = "true" ]; then
     return 0
   else
     return 1
@@ -370,7 +373,6 @@ if [ ${ACTION} == "chaos-test" ]; then
     fi
 
     # 使用helm部署chaos-mesh
-    chaos_mesh_ns="chaos-mesh-${GITHUB_RUN_ID}"
     helm repo add chaos-mesh https://charts.chaos-mesh.org
     kubectl create ns "${chaos_mesh_ns}"
     helm install chaos-mesh chaos-mesh/chaos-mesh -n="${chaos_mesh_ns}" --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.6.3
@@ -447,7 +449,6 @@ if [ ${ACTION} == "chaos-test" ]; then
     while true; do
       if check_test_pod_status; then
         echo "openchaos-controller Pod is ready"
-        kubectl get pods -n ${env_uuid} -l app=openchaos-controller -o jsonpath='{.items[0].metadata.name}'
         break
       fi
 
@@ -463,7 +464,9 @@ if [ ${ACTION} == "chaos-test" ]; then
 
     # 执行启动脚本
     mkdir /root/chaos-test/report
+    cd /root/chaos-test/
     sh /root/chaos-test/start-cron.sh /root/chaos-test/fault.yaml /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "${env_uuid}"
+    mkdir -p /home/runner/work/image-repo/image-repo/chaos-test-report
     cp -r /root/chaos-test/report /home/runner/work/image-repo/image-repo/chaos-test-report
 
 fi
