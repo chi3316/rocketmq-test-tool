@@ -466,7 +466,7 @@ if [ ${ACTION} == "chaos-test" ]; then
     mkdir -p /home/runner/work/image-repo/image-repo/chaos-test-report
     cd /root/chaos-test/
     sh /root/chaos-test/start-cron.sh /root/chaos-test/fault.yaml /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "${env_uuid}"
-    cp -r /root/chaos-test/report /home/runner/work/image-repo/image-repo/chaos-test-report
+    
 
 fi
 
