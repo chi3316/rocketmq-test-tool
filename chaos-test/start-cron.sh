@@ -19,7 +19,7 @@ cleanup() {
 trap cleanup EXIT
 
 # start openchaos
-kubectl exec -it $POD_NAME -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" &
+kubectl exec -it $POD_NAME -n ${ns} -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" &
 
 # start cron scheduler
 ./cron-scheduler.sh "$CRON" /home/chichi/rocketmq-chaos-test/starter-cron/inject_fault_cron.sh "$CHAOSMESH_YAML_FILE" "$LOG_FILE" "$LIMIT_TIME" "$POD_NAME"
