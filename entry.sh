@@ -472,6 +472,9 @@ if [ ${ACTION} == "clean" ]; then
 
     env=${env_uuid}
 
+    helm uninstall rocketmq -n ${env}
+    helm uninstall chaos-mesh -n chaos-mesh
+
     # vela delete ${env} -n ${env} -y
     all_pod_name=`kubectl get pods --no-headers -o custom-columns=":metadata.name" -n ${env}`
     for pod in $all_pod_name;
@@ -487,8 +490,6 @@ if [ ${ACTION} == "clean" ]; then
 
     DELETE_ENV=${env}
 
-    helm uninstall rocketmq -n ${DELETE_ENV}
-    helm uninstall chaos-mesh -n chaos-mesh
     # vela env delete ${DELETE_ENV} -y
     sleep 3
     kubectl delete namespace ${DELETE_ENV} --wait=false
