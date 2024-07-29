@@ -434,10 +434,10 @@ if [ ${ACTION} == "chaos-test" ]; then
       if [ -z "$pod_status" ]; then
         pod_status="Pending"
       fi
-      if [[ "${pod_status}" == "Pending" || "${pod_status}" == "Running" ]]; then
-        return 1
-      else
+      if [ "${pod_status}" == "Running" ]; then
         return 0
+      else
+        return 1
       fi
     }
 
