@@ -4,12 +4,13 @@ LOG_FILE=$2
 LIMIT_TIME=$3
 POD_NAME=$4
 ns=$5
+REPORT_DIR=$6
 CRON='* * * * *'
 
 cleanup() {
   echo "Performing cleanup..."
   crontab -r
-  kubectl cp -n ${ns} $POD_NAME:/chaos-framework/report /home/runner/work/image-repo/chaos-test-report
+  kubectl cp -n ${ns} $POD_NAME:/chaos-framework/report "$REPORT_DIR"
   ls /home/runner/work/image-repo/chaos-test-report
   kubectl delete deployment openchaos-controller -n ${ns}
   kubectl delete pod $POD_NAME -n ${ns}

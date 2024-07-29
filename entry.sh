@@ -463,12 +463,11 @@ if [ ${ACTION} == "chaos-test" ]; then
     done
 
     # 执行启动脚本
-    mkdir -p /home/runner/work/image-repo/chaos-test-report
-    chmod -R 777 /home/runner/work/image-repo/chaos-test-report
-
+    mkdir -p chaos-test-report
+    REPORT_DIR="$(pwd)/chaos-test-report"
     cd /root/chaos-test/
-    sh /root/chaos-test/start-cron.sh /root/chaos-test/fault.yaml /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "${env_uuid}"
-    cd /home/runner/work/image-repo/chaos-test-report/
+    sh /root/chaos-test/start-cron.sh /root/chaos-test/fault.yaml /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "${env_uuid}" "$REPORT_DIR"
+    cd -
 
 fi
 
