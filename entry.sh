@@ -492,6 +492,7 @@ if [ ${ACTION} == "clean" ]; then
 
     # vela env delete ${DELETE_ENV} -y
     sleep 3
+    kubectl delete deployment openchaos-controller
     kubectl delete namespace ${DELETE_ENV} --wait=false
     kubectl delete namespace chaos-mesh --wait=false
     kubectl get ns ${DELETE_ENV} -o json | jq '.spec.finalizers=[]' > ns-without-finalizers.json
