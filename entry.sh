@@ -374,10 +374,9 @@ if [ ${ACTION} == "chaos-test" ]; then
     helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.6.3
     
     # 检查 Chaos Mesh Pod 状态
-    check_pods_status() {
+    check_chaos_mesh_pods_status() {
       # 获取所有 Pod 的状态
       pods_status=$(kubectl get pods -n chaos-mesh -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')
-      
       all_running=true
       
       echo "$pods_status" | while read -r pod; do
@@ -485,8 +484,8 @@ if [ ${ACTION} == "clean" ]; then
 
     DELETE_ENV=${env}
 
-    helm uninstall rocketmq
-    helm uninstall chaos-mesh
+    helm uninstall rocketmq -n ${DELETE_ENV}
+    helm uninstall chaos-mesh -n chaos-mesh
     # vela env delete ${DELETE_ENV} -y
     sleep 3
     kubectl delete namespace ${DELETE_ENV} --wait=false
