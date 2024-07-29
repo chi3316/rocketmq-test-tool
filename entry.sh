@@ -370,15 +370,15 @@ if [ ${ACTION} == "chaos-test" ]; then
     fi
 
     # 使用helm部署chaos-mesh
-    chaos-mesh-ns="chaos-mesh-${GITHUB_RUN_ID}"
+    chaos_mesh_ns="chaos-mesh-${GITHUB_RUN_ID}"
     helm repo add chaos-mesh https://charts.chaos-mesh.org
-    kubectl create ns "${chaos-mesh-ns}"
-    helm install chaos-mesh chaos-mesh/chaos-mesh -n="${chaos-mesh-ns}" --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.6.3
+    kubectl create ns "${chaos_mesh_ns}"
+    helm install chaos-mesh chaos-mesh/chaos-mesh -n="${chaos_mesh_ns}" --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.6.3
     sleep 15
 
     # 检查 Chaos Mesh Pod 状态
     check_chaos_mesh_pods_status() {
-      pods_status=$(kubectl get pods -n ${chaos-mesh-ns} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')
+      pods_status=$(kubectl get pods -n ${chaos_mesh_ns} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')
       
       all_running=true
       
@@ -405,7 +405,7 @@ if [ ${ACTION} == "chaos-test" ]; then
     while true; do
       if check_chaos_mesh_pods_status; then
         echo "Chaos Mesh Pods are ready" --no-headers
-        kubectl get pods -n "${chaos-mesh-ns}"
+        kubectl get pods -n "${chaos_mesh_ns}"
         break
       fi
 
@@ -447,6 +447,7 @@ if [ ${ACTION} == "chaos-test" ]; then
     while true; do
       if check_test_pod_status; then
         echo "openchaos-controller Pod is ready"
+        kubectl get pods -n ${env_uuid} -l app=openchaos-controller -o jsonpath='{.items[0].metadata.name}'
         break
       fi
 
@@ -462,7 +463,8 @@ if [ ${ACTION} == "chaos-test" ]; then
 
     # 执行启动脚本
     mkdir /root/chaos-test/report
-    sh /root/chaos-test/start-cron.sh /root/chaos-test/fault.yaml /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name"
+    sh /root/chaos-test/start-cron.sh /root/chaos-test/fault.yaml /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "${env_uuid}"
+    cp -r /root/chaos-test/report /home/runner/work/image-repo/image-repo/chaos-test-report
 
 fi
 
@@ -474,7 +476,7 @@ if [ ${ACTION} == "clean" ]; then
     env=${env_uuid}
 
     helm uninstall rocketmq -n ${env}
-    helm uninstall chaos-mesh -n ${chaos-mesh-ns}
+    helm uninstall chaos-mesh -n ${chaos_mesh_ns}
 
     # vela delete ${env} -n ${env} -y
     all_pod_name=`kubectl get pods --no-headers -o custom-columns=":metadata.name" -n ${env}`
@@ -494,7 +496,7 @@ if [ ${ACTION} == "clean" ]; then
     # vela env delete ${DELETE_ENV} -y
     sleep 3
     kubectl delete namespace ${DELETE_ENV} --wait=false
-    kubectl delete namespace ${chaos-mesh-ns} --wait=false
+    kubectl delete namespace ${chaos_mesh_ns} --wait=false
     kubectl get ns ${DELETE_ENV} -o json | jq '.spec.finalizers=[]' > ns-without-finalizers.json
     cat ns-without-finalizers.json
     curl -X PUT http://localhost:8001/api/v1/namespaces/${DELETE_ENV}/finalize -H "Content-Type: application/json" --data-binary @ns-without-finalizers.json

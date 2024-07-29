@@ -3,14 +3,15 @@ CHAOSMESH_YAML_FILE=$1
 LOG_FILE=$2
 LIMIT_TIME=$3
 POD_NAME=$4
+ns=$5
 CRON='* * * * *'
 
 cleanup() {
   echo "Performing cleanup..."
   crontab -r
   kubectl cp $POD_NAME:/chaos-framework/report  /root/chaos-test/report
-  kubectl delete deployment openchaos-controller
-  kubectl delete pod $POD_NAME
+  kubectl delete deployment openchaos-controller -n ${ns}
+  kubectl delete pod $POD_NAME -n ${ns}
   echo "Cleanup completed."
 }
 
@@ -21,7 +22,7 @@ trap cleanup EXIT
 kubectl exec -it $POD_NAME -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" &
 
 # start cron scheduler
-./cron-scheduler.sh $CRON /home/chichi/rocketmq-chaos-test/starter-cron/inject_fault_cron.sh "$CHAOSMESH_YAML_FILE" "$LOG_FILE" "$LIMIT_TIME" "$POD_NAME"
+./start-cron.sh $CRON /home/chichi/rocketmq-chaos-test/starter-cron/inject_fault_cron.sh "$CHAOSMESH_YAML_FILE" "$LOG_FILE" "$LIMIT_TIME" "$POD_NAME"
 
 # 等待后台进程完成
 wait
