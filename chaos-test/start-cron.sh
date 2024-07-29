@@ -24,7 +24,7 @@ trap cleanup EXIT
 kubectl exec -it $POD_NAME -n ${ns} -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" &
 
 # start cron scheduler
-./cron-scheduler.sh "$CRON" /root/chaos-test/inject_fault_cron.sh "$CHAOSMESH_YAML_FILE" "$LOG_FILE" "$LIMIT_TIME" "$POD_NAME"
+./cron-scheduler.sh "$CRON" /root/chaos-test/inject_fault_cron.sh "$CHAOSMESH_YAML_FILE" "$LOG_FILE" "$LIMIT_TIME" "$POD_NAME" "$ns"
 
 # 等待后台进程完成
 wait
