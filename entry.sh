@@ -493,6 +493,7 @@ if [ ${ACTION} == "clean" ]; then
     # vela env delete ${DELETE_ENV} -y
     sleep 3
     kubectl delete namespace ${DELETE_ENV} --wait=false
+    kubectl delete namespace chaos-mesh --wait=false
     kubectl get ns ${DELETE_ENV} -o json | jq '.spec.finalizers=[]' > ns-without-finalizers.json
     cat ns-without-finalizers.json
     curl -X PUT http://localhost:8001/api/v1/namespaces/${DELETE_ENV}/finalize -H "Content-Type: application/json" --data-binary @ns-without-finalizers.json
