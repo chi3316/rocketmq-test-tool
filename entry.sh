@@ -86,7 +86,7 @@ ${YAML_VALUES}'
 echo -e "${VELA_APP_TEMPLATE}" > ./velaapp.yaml
 sed -i '1d' ./velaapp.yaml
 
-env_uuid=${REPO_NAME}-${GITHUB_RUN_ID}-${JOB_INDEX}
+env_uuid=${REPO_NAME}-${GITHUB_RUN_ID}
 
 
 if [ ${ACTION} == "deploy" ]; then
@@ -124,7 +124,8 @@ check_pods_status() {
   
   all_running=true
   
-  echo "$pods_status" | while read -r pod; do
+  echo "$pods_status" > /tmp/pods_status.txt
+  while read -r pod; do
     pod_name=$(echo "$pod" | awk '{print $1}')
     pod_phase=$(echo "$pod" | awk '{print $2}')
     
@@ -132,7 +133,7 @@ check_pods_status() {
       echo "Pod $pod_name is not running (Phase: $pod_phase)"
       all_running=false
     fi
-  done
+  done < /tmp/pods_status.txt
   
   if [ "$all_running" = "true" ]; then
     return 0
@@ -142,7 +143,7 @@ check_pods_status() {
 }
 
 # 等待 Helm release 和 Pods 都准备好
-let count=0
+count=0
 while true; do
   if check_helm_release_status && check_pods_status; then
     echo "Helm release and all Pods are ready"
@@ -157,7 +158,7 @@ while true; do
 
   echo "Waiting for Helm release and Pods to be ready..."
   sleep 5
-  let count=${count}+1
+  count=$((count + 1))
 done
   # app=${env_uuid}
 
@@ -372,14 +373,16 @@ if [ ${ACTION} == "chaos-test" ]; then
     helm repo add chaos-mesh https://charts.chaos-mesh.org
     kubectl create ns chaos-mesh
     helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.6.3
-    
+    sleep 15
+
     # 检查 Chaos Mesh Pod 状态
     check_chaos_mesh_pods_status() {
-      # 获取所有 Pod 的状态
       pods_status=$(kubectl get pods -n chaos-mesh -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')
+      
       all_running=true
       
-      echo "$pods_status" | while read -r pod; do
+      echo "$pods_status" > /tmp/pods_status.txt
+      while read -r pod; do
         pod_name=$(echo "$pod" | awk '{print $1}')
         pod_phase=$(echo "$pod" | awk '{print $2}')
         
@@ -387,7 +390,7 @@ if [ ${ACTION} == "chaos-test" ]; then
           echo "Pod $pod_name is not running (Phase: $pod_phase)"
           all_running=false
         fi
-      done
+      done < /tmp/pods_status.txt
       
       if [ "$all_running" = "true" ]; then
         return 0
