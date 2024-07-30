@@ -488,11 +488,13 @@ if [ ${ACTION} == "chaos-test" ]; then
     export ns
     envsubst < ./chaos-mesh-fault.yaml > ./network-chaos.yaml
     fault_file="$(pwd)/network-chaos.yaml"
+    # check fault file
+    cat $fault_file
     # 执行启动脚本
     mkdir -p chaos-test-report
     REPORT_DIR="$(pwd)/chaos-test-report"
     cd /root/chaos-test/
-    sh /root/chaos-test/start-cron.sh ${fault_file} /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "${env_uuid}" "$REPORT_DIR"
+    sh /root/chaos-test/start-cron.sh "$fault_file" /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "${env_uuid}" "$REPORT_DIR"
     cd -
 
 fi

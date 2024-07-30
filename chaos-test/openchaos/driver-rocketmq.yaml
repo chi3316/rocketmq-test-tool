@@ -15,7 +15,6 @@ data:
     nodes: 
     - rocketmq-broker-0-ssh
     - rocketmq-broker-1-ssh
-    - rocketmq-broker-2-ssh
     
     # Nodes for nameserver
     metaNodes:

@@ -9,6 +9,7 @@ CRON='* * * * *'
 
 cleanup() {
   echo "Performing cleanup..."
+  crontab -l
   crontab -r
   kubectl cp -n ${ns} --container=openchaos-controller $POD_NAME:/chaos-framework/report "$REPORT_DIR"
   ls $REPORT_DIR
@@ -20,10 +21,13 @@ cleanup() {
 # 设置 trap 捕获脚本退出或中断信号
 trap cleanup EXIT
 
+# test 
+touch output.log
+kubectl exec -it $POD_NAME -n ${ns} -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" > output.log 2>&1 &
 # start openchaos
-kubectl exec -it $POD_NAME -n ${ns} -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" &
+# kubectl exec -it $POD_NAME -n ${ns} -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" &
 
-# start cron scheduler
+# start cron scheduler , the script path must use absolute path
 ./cron-scheduler.sh "$CRON" /root/chaos-test/inject_fault_cron.sh "$CHAOSMESH_YAML_FILE" "$LOG_FILE" "$LIMIT_TIME" "$POD_NAME" "$ns"
 
 # 等待后台进程完成
