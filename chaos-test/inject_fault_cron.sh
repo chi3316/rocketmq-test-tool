@@ -7,6 +7,8 @@ LIMIT_TIME=$3
 POD_NAME=$4
 ns=$5
 
+KUBECTL_PATH="/usr/local/bin/kubectl"
+
 # 参数验证
 if [ -z "$CHAOSMESH_YAML_FILE" ] || [ -z "$LOG_FILE" ] || [ -z "$LIMIT_TIME" ] || [ -z "$POD_NAME" ] || [ -z "$ns" ]; then
   echo "Usage: $0 <chaos_experiment.yaml> <log_file> <limit_time> <pod_name> <namespace>"
@@ -27,13 +29,13 @@ log_fault_event() {
   event_type=$1
   fault_type=$2
   timestamp=$(current_millis)
-  kubectl exec -i $POD_NAME -n ${ns} -c sidecar-container -- /bin/sh -c "echo -e 'fault\t$fault_type\t$event_type\t$timestamp' >> $LOG_FILE"
+  $KUBECTL_PATH exec -i $POD_NAME -n ${ns} -c sidecar-container -- /bin/sh -c "echo -e 'fault\t$fault_type\t$event_type\t$timestamp' >> $LOG_FILE"
 }
 
 inject_fault() {
   echo "injecting fault..."
   log_fault_event "start" "chaos-mesh-fault"
-  if kubectl apply -f $CHAOSMESH_YAML_FILE; then
+  if $KUBECTL_PATH apply -f $CHAOSMESH_YAML_FILE; then
     echo "Fault injected successfully"
   else
     echo "Failed to inject fault"
@@ -43,7 +45,7 @@ inject_fault() {
 
 clear_fault() {
   echo "cleaning fault..."
-  if kubectl delete -f $CHAOSMESH_YAML_FILE; then
+  if $KUBECTL_PATH delete -f $CHAOSMESH_YAML_FILE; then
     log_fault_event "end" "chaos-mesh-fault"
   else
     echo "Failed to clear fault"

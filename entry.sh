@@ -493,8 +493,9 @@ if [ ${ACTION} == "chaos-test" ]; then
     # 执行启动脚本
     mkdir -p chaos-test-report
     REPORT_DIR="$(pwd)/chaos-test-report"
+    touch $REPORT_DIR/cron-log.txt
     cd /root/chaos-test/
-    sh /root/chaos-test/start-cron.sh "$fault_file" /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "${env_uuid}" "$REPORT_DIR"
+    sh ./start-cron.sh "$fault_file" /chaos-framework/report/chaos-mesh-fault 30 "$test_pod_name" "$ns" "$REPORT_DIR"
     cd -
 
 fi
@@ -554,6 +555,7 @@ if [ ${ACTION} == "cron-test" ]; then
       echo "Failed to start crond"
       exit 1
     fi
+
     ./cron-scheduler.sh '* * * * *' /root/chaos-test/cron-test/job.sh "$log_path"
     sleep 120
     cd -

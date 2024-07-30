@@ -9,13 +9,14 @@ fi
 # 获取cron表达式和脚本路径
 CRON_EXPR="$1"
 SCRIPT_PATH="$2"
+LOG_FILE="$3"
 # 脚本参数
-shift 2 
+shift 3 
 SCRIPT_ARGS="$@"
 
 chmod +x $SCRIPT_PATH
 # 构建cron作业的命令
-CRON_JOB="$CRON_EXPR $SCRIPT_PATH $SCRIPT_ARGS"
+CRON_JOB="$CRON_EXPR $SCRIPT_PATH $SCRIPT_ARGS" >> $LOG_FILE 2>&1"
 
 # 查看现有的cron作业
 (crontab -l 2>/dev/null; echo "$CRON_JOB") | sort - | uniq - | crontab -
