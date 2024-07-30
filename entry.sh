@@ -362,8 +362,7 @@ metadata:
   name: network-delay
 spec:
   action: delay
-  mode: fixed
-  value: '2'
+  mode: one
   selector:
     namespaces:
       - ${ns}
@@ -430,7 +429,7 @@ if [ ${ACTION} == "chaos-test" ]; then
     while true; do
       if check_chaos_mesh_pods_status; then
         echo "Chaos Mesh Pods are ready" 
-        kubectl get pods -n "${chaos_mesh_ns} "
+        kubectl get pods -n "${chaos_mesh_ns}"
         break
       fi
 
