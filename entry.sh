@@ -540,6 +540,10 @@ if [ ${ACTION} == "cron-test" ]; then
     echo "*          cron test...            *"
     echo "************************************"
 
+
+    touch test_script.log
+    log_path="$(pwd)/test_script.log"
+
     cd /root/chaos-test
     crond 
 
@@ -550,11 +554,8 @@ if [ ${ACTION} == "cron-test" ]; then
       echo "Failed to start crond"
       exit 1
     fi
-    
-    touch test_script.log
-    $log_path="$(pwd)/test_script.log"
     ./cron-scheduler.sh '* * * * *' /root/chaos-test/cron-test/job.sh "$log_path"
-
+    sleepl 120
     cd -
 
 fi
