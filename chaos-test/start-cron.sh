@@ -30,7 +30,7 @@ touch output.log
 kubectl exec -i $POD_NAME -n ${ns} -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" > output.log 2>&1 &
 # start openchaos
 # kubectl exec -it $POD_NAME -n ${ns} -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" &
-sleep 10
+# sleep 10
 # sh /root/chaos-test/inject_fault_cron.sh "$CHAOSMESH_YAML_FILE" "$LOG_FILE" "$LIMIT_TIME" "$POD_NAME" "$ns"
 # start cron scheduler , the script path must use absolute path
 ./cron-scheduler.sh '* * * * *' /root/chaos-test/inject_fault_cron.sh "$REPORT_DIR/cron-log.txt" "$CHAOSMESH_YAML_FILE" "$LOG_FILE" "$LIMIT_TIME" "$POD_NAME" "$ns"
