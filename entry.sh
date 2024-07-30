@@ -555,7 +555,7 @@ if [ ${ACTION} == "cron-test" ]; then
       exit 1
     fi
     ./cron-scheduler.sh '* * * * *' /root/chaos-test/cron-test/job.sh "$log_path"
-    sleepl 120
+    sleep 120
     cd -
 
 fi
