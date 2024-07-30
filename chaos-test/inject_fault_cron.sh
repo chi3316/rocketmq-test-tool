@@ -27,7 +27,7 @@ log_fault_event() {
   event_type=$1
   fault_type=$2
   timestamp=$(current_millis)
-  kubectl exec -it $POD_NAME -n ${ns} -c sidecar-container -- /bin/sh -c "echo -e 'fault\t$fault_type\t$event_type\t$timestamp' >> $LOG_FILE"
+  kubectl exec -i $POD_NAME -n ${ns} -c sidecar-container -- /bin/sh -c "echo -e 'fault\t$fault_type\t$event_type\t$timestamp' >> $LOG_FILE"
 }
 
 inject_fault() {

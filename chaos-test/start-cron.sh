@@ -27,7 +27,7 @@ trap cleanup EXIT
 # test 
 echo "Running chaos test..."
 touch output.log
-kubectl exec -it $POD_NAME -n ${ns} -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" > output.log 2>&1 &
+kubectl exec -i $POD_NAME -n ${ns} -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" > output.log 2>&1 &
 # start openchaos
 # kubectl exec -it $POD_NAME -n ${ns} -c openchaos-controller -- /bin/sh -c "./start-openchaos.sh --driver driver-rocketmq/rocketmq.yaml -u rocketmq --output-dir ./report -t 180" &
 sleep 10
