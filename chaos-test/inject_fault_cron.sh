@@ -7,6 +7,18 @@ LIMIT_TIME=$3
 POD_NAME=$4
 ns=$5
 
+# 参数验证
+if [ -z "$CHAOSMESH_YAML_FILE" ] || [ -z "$LOG_FILE" ] || [ -z "$LIMIT_TIME" ] || [ -z "$POD_NAME" ] || [ -z "$ns" ]; then
+  echo "Usage: $0 <chaos_experiment.yaml> <log_file> <limit_time> <pod_name> <namespace>"
+  exit 1
+fi
+
+# 确保文件存在
+if [ ! -f "$CHAOSMESH_YAML_FILE" ]; then
+  echo "Chaos Mesh YAML file not found: $CHAOSMESH_YAML_FILE"
+  exit 1
+fi
+
 current_millis() {
   echo $(( $(date +%s%N) / 1000000 ))
 }

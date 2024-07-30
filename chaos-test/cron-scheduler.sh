@@ -20,4 +20,4 @@ CRON_JOB="$CRON_EXPR $SCRIPT_PATH $SCRIPT_ARGS"
 # 查看现有的cron作业
 (crontab -l 2>/dev/null; echo "$CRON_JOB") | sort - | uniq - | crontab -
 
-echo "$CRON_JOB added"s
+echo "$CRON_JOB added"

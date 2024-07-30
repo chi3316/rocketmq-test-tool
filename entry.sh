@@ -429,8 +429,8 @@ if [ ${ACTION} == "chaos-test" ]; then
     let count=0
     while true; do
       if check_chaos_mesh_pods_status; then
-        echo "Chaos Mesh Pods are ready" --no-headers
-        kubectl get pods -n "${chaos_mesh_ns}"
+        echo "Chaos Mesh Pods are ready" 
+        kubectl get pods -n "${chaos_mesh_ns} "
         break
       fi
 
