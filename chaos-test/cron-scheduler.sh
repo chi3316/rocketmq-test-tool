@@ -13,8 +13,11 @@ SCRIPT_PATH="$2"
 shift 2 
 SCRIPT_ARGS="$@"
 
+chmod +x $SCRIPT_PATH
 # 构建cron作业的命令
 CRON_JOB="$CRON_EXPR $SCRIPT_PATH $SCRIPT_ARGS"
 
 # 查看现有的cron作业
 (crontab -l 2>/dev/null; echo "$CRON_JOB") | sort - | uniq - | crontab -
+
+echo "$CRON_JOB added"s

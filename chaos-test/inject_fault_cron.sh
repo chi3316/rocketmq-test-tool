@@ -19,6 +19,7 @@ log_fault_event() {
 }
 
 inject_fault() {
+  echo "injecting fault..."
   log_fault_event "start" "chaos-mesh-fault"
   if kubectl apply -f $CHAOSMESH_YAML_FILE; then
     echo "Fault injected successfully"
@@ -29,6 +30,7 @@ inject_fault() {
 }
 
 clear_fault() {
+  echo "cleaning fault..."
   if kubectl delete -f $CHAOSMESH_YAML_FILE; then
     log_fault_event "end" "chaos-mesh-fault"
   else
@@ -36,6 +38,8 @@ clear_fault() {
     log_fault_event "error_clear" "chaos-mesh-fault"
   fi
 }
+
+echo "正在执行故障注入脚本..."
 
 # 注入 Chaos Mesh 故障
 inject_fault
