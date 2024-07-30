@@ -7,7 +7,8 @@ LIMIT_TIME=$3
 POD_NAME=$4
 ns=$5
 
-KUBECTL_PATH="/usr/local/bin/kubectl"
+export KUBECONFIG=/root/.kube/config
+export KUBECTL_PATH=/usr/local/bin/kubectl
 
 # 参数验证
 if [ -z "$CHAOSMESH_YAML_FILE" ] || [ -z "$LOG_FILE" ] || [ -z "$LIMIT_TIME" ] || [ -z "$POD_NAME" ] || [ -z "$ns" ]; then
