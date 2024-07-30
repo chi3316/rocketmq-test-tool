@@ -8,24 +8,33 @@ POD_NAME=$4
 ns=$5
 
 current_millis() {
-  echo $(($(date +%s%N)/1000000))
+  echo $(( $(date +%s%N) / 1000000 ))
 }
 
 log_fault_event() {
-  local event_type=$1
-  local fault_type=$2
-  local timestamp=$(current_millis)
+  event_type=$1
+  fault_type=$2
+  timestamp=$(current_millis)
   kubectl exec -it $POD_NAME -n ${ns} -c sidecar-container -- /bin/sh -c "echo -e 'fault\t$fault_type\t$event_type\t$timestamp' >> $LOG_FILE"
 }
 
 inject_fault() {
   log_fault_event "start" "chaos-mesh-fault"
-  kubectl apply -f $CHAOSMESH_YAML_FILE
+  if kubectl apply -f $CHAOSMESH_YAML_FILE; then
+    echo "Fault injected successfully"
+  else
+    echo "Failed to inject fault"
+    log_fault_event "error" "chaos-mesh-fault"
+  fi
 }
 
 clear_fault() {
-  kubectl delete -f $CHAOSMESH_YAML_FILE
-  log_fault_event "end" "chaos-mesh-fault"
+  if kubectl delete -f $CHAOSMESH_YAML_FILE; then
+    log_fault_event "end" "chaos-mesh-fault"
+  else
+    echo "Failed to clear fault"
+    log_fault_event "error_clear" "chaos-mesh-fault"
+  fi
 }
 
 # 注入 Chaos Mesh 故障
@@ -36,4 +45,3 @@ sleep $LIMIT_TIME
 
 # 清理 Chaos Mesh 故障
 clear_fault
-

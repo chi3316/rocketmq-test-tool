@@ -483,7 +483,7 @@ if [ ${ACTION} == "chaos-test" ]; then
       echo "Waiting for openchaos-controller Pod to be ready..."
       sleep 5
       let count=${count}+1
-    
+    done
     
     ns=${env_uuid}
     export ns
