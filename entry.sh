@@ -60,7 +60,7 @@ chmod 700 get_helm.sh
 helm version
 
 # 启用vela的fluxcd插件，可能是版本太新了，默认已经移除了type=helm的类型，需要通过插件启用
-vela addon enable fluxcd
+# vela addon enable fluxcd
 
 VELA_APP_TEMPLATE='
 apiVersion: core.oam.dev/v1beta1
@@ -483,8 +483,9 @@ if [ ${ACTION} == "chaos-test" ]; then
       echo "Waiting for openchaos-controller Pod to be ready..."
       sleep 5
       let count=${count}+1
-    done
     
+    
+    ns=${env_uuid}
     export ns
     envsubst < ./chaos-mesh-fault.yaml > ./network-chaos.yaml
     fault_file="$(pwd)/network-chaos.yaml"
