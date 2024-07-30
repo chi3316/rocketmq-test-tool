@@ -535,6 +535,30 @@ if [ ${ACTION} == "clean" ]; then
     kill $PID
 fi
 
+if [ ${ACTION} == "cron-test" ]; then
+    echo "************************************"
+    echo "*          cron test...            *"
+    echo "************************************"
+
+    cd /root/chaos-test
+    crond 
+
+    if ps aux | grep '[c]rond' > /dev/null
+    then
+      echo "crond is running"
+    else
+      echo "Failed to start crond"
+      exit 1
+    fi
+    
+    touch test_script.log
+    $log_path="$(pwd)/test_script.log"
+    ./cron-scheduler.sh '* * * * *' /root/chaos-test/cron-test/job.sh "$log_path"
+
+    cd -
+
+fi
+
 if [ ${ACTION} == "try" ]; then
   kubectl get pods --all-namespaces
 fi
