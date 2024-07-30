@@ -7,7 +7,6 @@ LIMIT_TIME=$3
 POD_NAME=$4
 ns=$5
 
-export KUBECONFIG=/root/.kube/config
 export KUBECTL_PATH=/usr/local/bin/kubectl
 
 # 参数验证

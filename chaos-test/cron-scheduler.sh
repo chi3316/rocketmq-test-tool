@@ -15,8 +15,11 @@ shift 3
 SCRIPT_ARGS="$@"
 
 chmod +x $SCRIPT_PATH
+
+KUBECONFIG_PATH=$(printenv KUBECONFIG)
+
 # 构建cron作业的命令
-CRON_JOB="$CRON_EXPR $SCRIPT_PATH $SCRIPT_ARGS >> $LOG_FILE 2>&1"
+CRON_JOB="$CRON_EXPR KUBECONFIG=$KUBECONFIG_PATH $SCRIPT_PATH $SCRIPT_ARGS >> $LOG_FILE 2>&1"
 
 # 查看现有的cron作业
 (crontab -l 2>/dev/null; echo "$CRON_JOB") | sort - | uniq - | crontab -
