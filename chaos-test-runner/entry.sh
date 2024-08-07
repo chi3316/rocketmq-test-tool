@@ -208,7 +208,7 @@ if [ ${ACTION} == "chaos-test" ]; then
     helm repo add chaos-mesh https://charts.chaos-mesh.org
     kubectl create ns "${chaos_mesh_ns}"
     # helm install chaos-mesh chaos-mesh/chaos-mesh -n="${chaos_mesh_ns}" --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.6.3
-    helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --version 2.6.3
+    helm install chaos-mesh chaos-mesh/chaos-mesh -n=${chaos_mesh_ns} --version 2.6.3
     sleep 10
 
     # Check chaos-mesh pod status
