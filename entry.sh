@@ -135,10 +135,10 @@ spec:
     image: cloudnativeofalibabacloud/test-runner:v0.0.3
     resources:
           limits:
-            cpu: "8"
+            cpu: "6"
             memory: "8Gi"
           requests:
-            cpu: "8"
+            cpu: "6"
             memory: "8Gi"
     env:
     - name: CODE
