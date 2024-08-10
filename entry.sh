@@ -132,9 +132,7 @@ spec:
   restartPolicy: Never
   containers:
   - name: ${test_pod_name}
-    image: registry.cn-guangzhou.aliyuncs.com/cc-aliyun/test-runner:v0.0.3
-    command: ["/bin/sh"]
-    args: ["-c", "tail -f /dev/null"]
+    image: registry.cn-guangzhou.aliyuncs.com/cc-aliyun/test-runner:v1.1
     resources:
           limits:
             cpu: "6"
