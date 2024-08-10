@@ -133,6 +133,8 @@ spec:
   containers:
   - name: ${test_pod_name}
     image: registry.cn-guangzhou.aliyuncs.com/cc-aliyun/test-runner:v0.0.3
+    command: ["/bin/sh"]
+    args: ["-c", "tail -f /dev/null"]
     resources:
           limits:
             cpu: "6"
