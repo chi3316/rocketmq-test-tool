@@ -24,19 +24,21 @@ log_fault_event() {
 }
 
 inject_fault() {
-  if $KUBECTL_PATH apply -f $CHAOSMESH_YAML_FILE; then
-    log_fault_event "start" "chaos-mesh-fault"
-  else
-    log_fault_event "error" "chaos-mesh-fault"
-  fi
+  $KUBECTL_PATH apply -f $CHAOSMESH_YAML_FILE &
+  apply_pid=$!
+
+  wait $apply_pid
+
+  log_fault_event "start" "chaos-mesh-fault"
 }
 
 clear_fault() {
-  if $KUBECTL_PATH delete -f $CHAOSMESH_YAML_FILE; then
-    log_fault_event "end" "chaos-mesh-fault"
-  else
-    log_fault_event "error_clear" "chaos-mesh-fault"
-  fi
+  $KUBECTL_PATH delete -f $CHAOSMESH_YAML_FILE &
+  delete_pid=$!
+  
+  wait $delete_pid
+  
+  log_fault_event "end" "chaos-mesh-fault"
 }
 
 inject_fault
