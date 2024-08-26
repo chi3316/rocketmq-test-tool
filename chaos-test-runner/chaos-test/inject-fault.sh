@@ -25,28 +25,22 @@ log_fault_event() {
 
 inject_fault() {
   $KUBECTL_PATH apply -f $CHAOSMESH_YAML_FILE &
-  apply_pid=$!
 
   while ! $KUBECTL_PATH get -f $CHAOSMESH_YAML_FILE > /dev/null 2>&1; do
     sleep 1  # 每秒钟检查一次
   done
 
   log_fault_event "start" "chaos-mesh-fault"
-  
-  wait $apply_pid
 }
 
 clear_fault() {
   $KUBECTL_PATH delete -f $CHAOSMESH_YAML_FILE &
-  delete_pid=$!
 
   while $KUBECTL_PATH get -f $CHAOSMESH_YAML_FILE > /dev/null 2>&1; do
     sleep 1  
   done
 
   log_fault_event "end" "chaos-mesh-fault"
-  
-  wait $delete_pid
 }
 
 inject_fault
