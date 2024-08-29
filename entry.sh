@@ -132,14 +132,14 @@ spec:
   restartPolicy: Never
   containers:
   - name: ${test_pod_name}
-    image: cloudnativeofalibabacloud/test-runner:v0.0.3
+    image: registry.cn-guangzhou.aliyuncs.com/cc-aliyun/test-runner:v1.4
     resources:
           limits:
-            cpu: "6"
-            memory: "8Gi"
+            cpu: "4"
+            memory: "4Gi"
           requests:
-            cpu: "6"
-            memory: "8Gi"
+            cpu: "4"
+            memory: "4Gi"
     env:
     - name: CODE
       value: ${TEST_CODE_GIT}
