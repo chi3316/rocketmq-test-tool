@@ -140,8 +140,6 @@ spec:
           value: ${namesrv}
         - name: TIMESTAMP
           value: "${timestamp}"
-        - name: TEST_CMD
-          value: ${TEST_CMD}
       args: ["tail -f /dev/null"]
       resources:
         requests:
@@ -160,11 +158,10 @@ spec:
 '
 deploy_pod() {
     local role=$1
-    local template=$2
     local pod_name="${role}-${env_uuid}"
-    local test_cmd=$3
+    local test_cmd=$2
     
-    echo -e "${template}" > ./${role}_pod.yaml
+    echo -e "${CLIENT_POD_TEMPLATE}" > ./${role}_pod.yaml
     sed -i '1d' ./${role}_pod.yaml
     export test_pod_name=$pod_name
 
@@ -182,14 +179,15 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
   export timestamp
   ns=${env_uuid}
   export ns
+  export namesrv=$(kubectl get svc -n ${ns} | grep nameserver | awk '{print $1}'):9876
 
   # 部署 consumer
   consumer_cmd='sh mqadmin updatetopic -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP -c DefaultCluster && cd ../benchmark/ && sh consumer.sh -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP > /mnt/report/consumer_$TIMESTAMP.log 2>&1'
-  deploy_pod "consumer" "${CLIENT_POD_TEMPLATE}" "$consumer_cmd"
+  deploy_pod "consumer" "$consumer_cmd"
 
   # 部署 producer
   producer_cmd='cd ../benchmark/ && sh producer.sh -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP > /mnt/report/producer_$TIMESTAMP.log 2>&1'
-  deploy_pod "producer" "${CLIENT_POD_TEMPLATE}" "$producer_cmd"
+  deploy_pod "producer" "$producer_cmd"
 
   echo "Waiting for benchmark test done..."
   sleep ${TEST_TIME}
@@ -287,7 +285,6 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
       exit 1
   fi
   cd -
-
 fi
 
 if [ "${ACTION}" = "clean" ]; then
