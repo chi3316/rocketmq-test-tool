@@ -158,94 +158,77 @@ spec:
       emptyDir: {}
   restartPolicy: Never
 '
+deploy_pod() {
+    local role=$1
+    local template=$2
+    local pod_name="${role}-${env_uuid}"
+    local test_cmd=$3
+    
+    echo -e "${template}" > ./${role}_pod.yaml
+    sed -i '1d' ./${role}_pod.yaml
+    export test_pod_name=$pod_name
+
+    envsubst < ./${role}_pod.yaml > ${pod_name}.yaml
+    cat ${pod_name}.yaml
+    sleep 5
+
+    kubectl apply -f ${pod_name}.yaml -n ${ns} --validate=false
+    kubectl wait --for=condition=Ready pod/${pod_name} -n ${ns} --timeout=300s
+    kubectl exec -i ${pod_name} -n ${ns} -- /bin/sh -c "$test_cmd" &
+}
 
 if [ "${ACTION}" = "performance-benchmark" ]; then
-
-  echo -e "${CLIENT_POD_TEMPLATE}" > ./consumer_pod.yaml
-  sed -i '1d' ./consumer_pod.yaml
-
   timestamp=$(date +%Y%m%d_%H%M%S)
   export timestamp
   ns=${env_uuid}
   export ns
-  export test_pod_name="consumer"-${env_uuid}
-  consumer_pod_name=${test_pod_name}
-  namesrv_svc=$(kubectl get svc -n ${ns} | grep nameserver | awk '{print $1}')
-  export namesrv=${namesrv_svc}:9876
 
-  # 定义 Consumer 执行命令
-  TEST_CMD='sh mqadmin updatetopic -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP -c DefaultCluster && cd ../benchmark/ && sh consumer.sh -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP > /mnt/report/consumer_$TIMESTAMP.log 2>&1'
-  export TEST_CMD
-  envsubst < ./consumer_pod.yaml > ${consumer_pod_name}.yaml
-  cat ${consumer_pod_name}.yaml
-  sleep 5
+  # 部署 consumer
+  consumer_cmd='sh mqadmin updatetopic -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP -c DefaultCluster && cd ../benchmark/ && sh consumer.sh -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP > /mnt/report/consumer_$TIMESTAMP.log 2>&1'
+  deploy_pod "consumer" "${CLIENT_POD_TEMPLATE}" "$consumer_cmd"
 
-  kubectl apply -f ${consumer_pod_name}.yaml -n ${ns} --validate=false
-  kubectl wait --for=condition=Ready pod/${consumer_pod_name} -n ${ns} --timeout=300s
-  kubectl exec -i ${consumer_pod_name} -n ${ns} -- /bin/sh -c "$TEST_CMD" &
-
-  # 部署producer
-  echo -e "${CLIENT_POD_TEMPLATE}" > ./producer_pod.yaml
-  sed -i '1d' ./producer_pod.yaml
-
-  export test_pod_name="producer"-${env_uuid}
-  producer_pod_name=${test_pod_name}
-
-  TEST_CMD='cd ../benchmark/ && sh producer.sh -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP > /mnt/report/producer_$TIMESTAMP.log 2>&1'
-  export TEST_CMD
-  envsubst < ./producer_pod.yaml > ${producer_pod_name}.yaml
-  cat ${producer_pod_name}.yaml
-  sleep 5
-
-  kubectl apply -f ${producer_pod_name}.yaml -n ${ns} --validate=false
-  kubectl wait --for=condition=Ready pod/${producer_pod_name} -n ${ns} --timeout=300s
-  kubectl exec -i ${producer_pod_name} -n ${ns} -- /bin/sh -c "$TEST_CMD" &
+  # 部署 producer
+  producer_cmd='cd ../benchmark/ && sh producer.sh -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP > /mnt/report/producer_$TIMESTAMP.log 2>&1'
+  deploy_pod "producer" "${CLIENT_POD_TEMPLATE}" "$producer_cmd"
 
   echo "Waiting for benchmark test done..."
   sleep ${TEST_TIME}
 
   # 停止benchmark测试
+  consumer_pod_name="consumer"-${env_uuid}
+  producer_pod_name="producer"-${env_uuid}
   kubectl exec -i ${consumer_pod_name} -n ${ns} -- /bin/sh -c "sh ../benchmark/shutdown.sh consumer"
   kubectl exec -i ${producer_pod_name} -n ${ns} -- /bin/sh -c "sh ../benchmark/shutdown.sh producer"
 
   # 收集报告
   path=$(pwd)
   mkdir -p ${path}/benchmark/
-  report_path=${path}/benchmark/
 
-  kubectl cp --retries=10 ${consumer_pod_name}:/mnt/report/ ${report_path} -n ${ns} 
-  kubectl cp --retries=10 ${producer_pod_name}:/mnt/report/ ${report_path} -n ${ns} 
+  kubectl cp --retries=10 ${consumer_pod_name}:/mnt/report/ ${path}/benchmark/ -n ${ns} 
+  kubectl cp --retries=10 ${producer_pod_name}:/mnt/report/ ${path}/benchmark/ -n ${ns} 
   sleep 10
   kubectl delete pod ${consumer_pod_name} -n ${ns}
   kubectl delete pod ${producer_pod_name} -n ${ns}
 
   # 处理数据，生成图表
-  cd ${report_path}
+  cd ${path}/benchmark/
   cp /benchmark/log_analysis.py ./log_analysis.py
   python3 log_analysis.py
   rm -f log_analysis.py consumer_performance_data.csv producer_performance_data.csv
   ls
 
-  # 判断 CI 是否通过
-  consumer_benchmark="consumer_benchmark_result.csv"
-  producer_benchmark="producer_benchmark_result.csv"
-
   # 打印测试结果
   echo "====================benchmark result===================="
   echo "Consumer benchmark result: "
-  if [ -f ${consumer_benchmark} ]; then
-      cat ${consumer_benchmark}
-  else
-      echo "Consumer benchmark file not found."
-  fi
+  cat consumer_benchmark_result.csv || echo "Consumer benchmark file not found."
   echo "===================================="
   echo "Producer benchmark result: "
-  if [ -f ${producer_benchmark} ]; then
-      cat ${producer_benchmark}
-  else
-      echo "Producer benchmark file not found."
-  fi
+  cat producer_benchmark_result.csv || echo "Producer benchmark file not found."
   echo "========================================================"
+
+  # 判断 CI 是否通过
+  consumer_benchmark="consumer_benchmark_result.csv"
+  producer_benchmark="producer_benchmark_result.csv"、
 
   # Producer 阈值
   MIN_SEND_TPS_THRESHOLD=19000
