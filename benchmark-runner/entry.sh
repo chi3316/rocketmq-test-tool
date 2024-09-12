@@ -37,10 +37,24 @@ export WORKFLOW_NAME=${GITHUB_WORKFLOW}
 export RUN_ID=${GITHUB_RUN_ID}
 export YAML_VALUES=`echo "${HELM_VALUES}" | sed -s 's/^/          /g'`
 
+#tmq集群 连接rocke
+# 创建压力机Pod ： consumer和producer
+# 执行压力测试脚本
+# 收集测试数据
+# 与提前设置的阈值作比较，作为ci通过的条件
+
 mkdir -p ${HOME}/.kube
 kube_config=$(echo "${ASK_CONFIG}")
 echo "${kube_config}" > ${HOME}/.kube/config
 export KUBECONFIG="${HOME}/.kube/config"
+
+# 检查集群连接
+echo "Checking Kubernetes cluster connection..."
+kubectl get nodes
+if [ $? -ne 0 ]; then
+  echo "Error: Cannot connect to Kubernetes cluster."
+  exit 1
+fi
 
 env_uuid=${REPO_NAME}-${GITHUB_RUN_ID}-${JOB_INDEX}
 
@@ -167,24 +181,24 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
   export ns
   export namesrv=$(kubectl get svc -n ${ns} | grep nameserver | awk '{print $1}'):9876
 
-  # Deploy consumer
+  # 部署 consumer
   consumer_cmd='sh mqadmin updatetopic -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP -c DefaultCluster && cd ../benchmark/ && sh consumer.sh -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP > /mnt/report/consumer_$TIMESTAMP.log 2>&1'
   deploy_pod "consumer" "$consumer_cmd"
 
-  # Deploy producer
+  # 部署 producer
   producer_cmd='cd ../benchmark/ && sh producer.sh -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP > /mnt/report/producer_$TIMESTAMP.log 2>&1'
   deploy_pod "producer" "$producer_cmd"
 
   echo "Waiting for benchmark test done..."
   sleep ${TEST_TIME}
 
-  # Stop benchmark test
+  # 停止benchmark测试
   consumer_pod_name="consumer"-${env_uuid}
   producer_pod_name="producer"-${env_uuid}
   kubectl exec -i ${consumer_pod_name} -n ${ns} -- /bin/sh -c "sh ../benchmark/shutdown.sh consumer"
   kubectl exec -i ${producer_pod_name} -n ${ns} -- /bin/sh -c "sh ../benchmark/shutdown.sh producer"
 
-  # Collect reports
+  # 收集报告
   path=$(pwd)
   mkdir -p ${path}/benchmark/
 
@@ -201,7 +215,7 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
   rm -f log_analysis.py consumer_performance_data.csv producer_performance_data.csv
   ls
 
-  # Print the benchmark result
+  # 打印测试结果
   echo "====================benchmark result===================="
   echo "Consumer benchmark result: "
   cat consumer_benchmark_result.csv || echo "Consumer benchmark file not found."
@@ -210,15 +224,16 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
   cat producer_benchmark_result.csv || echo "Producer benchmark file not found."
   echo "========================================================"
 
+  # 判断 CI 是否通过
   consumer_benchmark="consumer_benchmark_result.csv"
   producer_benchmark="producer_benchmark_result.csv"
 
-  # Producer threshold
+  # Producer 阈值
   MIN_SEND_TPS_THRESHOLD=19000
   MAX_RT_MS_THRESHOLD=700
   AVG_RT_MS_THRESHOLD=4
 
-  # Consumer threshold
+  # Consumer 阈值
   MIN_CONSUME_TPS_THRESHOLD=19000
   MAX_S2C_RT_MS_THRESHOLD=60
   MAX_B2C_RT_MS_THRESHOLD=60
@@ -233,8 +248,8 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
       $1 == metric {print $column; exit}
       ' "$file"
   }
-  
-  # Get values from csv
+
+  # 获取相关指标
   consume_tps_min=$(get_csv_value "$consumer_benchmark" "Consume TPS" 2)
   max_s2c_rt=$(get_csv_value "$consumer_benchmark" "MAX(S2C) RT (ms)" 2)
   max_b2c_rt=$(get_csv_value "$consumer_benchmark" "MAX(B2C) RT (ms)" 2)
@@ -245,34 +260,28 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
   max_rt=$(get_csv_value "$producer_benchmark" "Max RT (ms)" 2)
   avg_rt=$(get_csv_value "$producer_benchmark" "Average RT (ms)" 2)
 
-  check_threshold() {
-      local value=$1
-      local threshold=$2
-      awk -v value="$value" -v threshold="$threshold" 'BEGIN {print (value <= threshold)}'
-  }
+  # 校验 Consumer 阈值
+  consumer_tps_pass=$(awk -v a="$consume_tps_min" -v b="$MIN_CONSUME_TPS_THRESHOLD" 'BEGIN {print (a >= b) ? "true" : "false"}')
+  consumer_latency_pass=$(awk -v max_s2c="$max_s2c_rt" -v max_b2c="$max_b2c_rt" -v avg_s2c="$avg_s2c_rt" -v avg_b2c="$avg_b2c_rt" \
+      -v max_s2c_thr="$MAX_S2C_RT_MS_THRESHOLD" -v max_b2c_thr="$MAX_B2C_RT_MS_THRESHOLD" -v avg_s2c_thr="$AVG_S2C_RT_MS_THRESHOLD" -v avg_b2c_thr="$AVG_B2C_RT_MS_THRESHOLD" \
+      'BEGIN {print (max_s2c <= max_s2c_thr && max_b2c <= max_b2c_thr && avg_s2c <= avg_s2c_thr && avg_b2c <= avg_b2c_thr) ? "true" : "false"}')
 
-  # Validate the result
-  consumer_tps_pass=$(awk -v a="$consume_tps_min" -v b="$MIN_CONSUME_TPS_THRESHOLD" 'BEGIN {print (a >= b)}')
-  consumer_latency_pass=$(check_threshold "$max_s2c_rt" "$MAX_S2C_RT_MS_THRESHOLD") && \
-                        $(check_threshold "$max_b2c_rt" "$MAX_B2C_RT_MS_THRESHOLD") && \
-                        $(check_threshold "$avg_s2c_rt" "$AVG_S2C_RT_MS_THRESHOLD") && \
-                        $(check_threshold "$avg_b2c_rt" "$AVG_B2C_RT_MS_THRESHOLD")
+  # 校验 Producer 阈值
+  producer_tps_pass=$(awk -v a="$send_tps_min" -v b="$MIN_SEND_TPS_THRESHOLD" 'BEGIN {print (a >= b) ? "true" : "false"}')
+  producer_latency_pass=$(awk -v max_rt="$max_rt" -v avg_rt="$avg_rt" -v max_rt_thr="$MAX_RT_MS_THRESHOLD" -v avg_rt_thr="$AVG_RT_MS_THRESHOLD" \
+      'BEGIN {print (max_rt <= max_rt_thr && avg_rt <= avg_rt_thr) ? "true" : "false"}')
 
-  producer_tps_pass=$(awk -v a="$send_tps_min" -v b="$MIN_SEND_TPS_THRESHOLD" 'BEGIN {print (a >= b)}')
-  producer_latency_pass=$(check_threshold "$max_rt" "$MAX_RT_MS_THRESHOLD") && \
-                        $(check_threshold "$avg_rt" "$AVG_RT_MS_THRESHOLD")
-
-  # Check if CI passes
-  if [ "$consumer_tps_pass" -eq 1 ] && [ "$consumer_latency_pass" -eq 1 ] && \
-    [ "$producer_tps_pass" -eq 1 ] && [ "$producer_latency_pass" -eq 1 ]; then
+  # 判断测试结果是否通过
+  if [ "$consumer_tps_pass" = "true" ] && [ "$consumer_latency_pass" = "true" ] && \
+    [ "$producer_tps_pass" = "true" ] && [ "$producer_latency_pass" = "true" ]; then
       echo "All benchmarks passed."
       exit 0
   else
       echo "One or more benchmarks failed."
-      [ "$consumer_tps_pass" -eq 0 ] && echo "Consumer TPS test failed."
-      [ "$consumer_latency_pass" -eq 0 ] && echo "Consumer latency test failed."
-      [ "$producer_tps_pass" -eq 0 ] && echo "Producer TPS test failed."
-      [ "$producer_latency_pass" -eq 0 ] && echo "Producer latency test failed."
+      [ "$consumer_tps_pass" = "false" ] && echo "Consumer TPS test failed."
+      [ "$consumer_latency_pass" = "false" ] && echo "Consumer latency test failed."
+      [ "$producer_tps_pass" = "false" ] && echo "Producer TPS test failed."
+      [ "$producer_latency_pass" = "false" ] && echo "Producer latency test failed."
       exit 1
   fi
   cd -
