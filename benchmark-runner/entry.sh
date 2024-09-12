@@ -228,7 +228,7 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
 
   # 判断 CI 是否通过
   consumer_benchmark="consumer_benchmark_result.csv"
-  producer_benchmark="producer_benchmark_result.csv"、
+  producer_benchmark="producer_benchmark_result.csv"
 
   # Producer 阈值
   MIN_SEND_TPS_THRESHOLD=19000
