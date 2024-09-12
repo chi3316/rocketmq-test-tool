@@ -37,24 +37,10 @@ export WORKFLOW_NAME=${GITHUB_WORKFLOW}
 export RUN_ID=${GITHUB_RUN_ID}
 export YAML_VALUES=`echo "${HELM_VALUES}" | sed -s 's/^/          /g'`
 
-#tmq集群 连接rocke
-# 创建压力机Pod ： consumer和producer
-# 执行压力测试脚本
-# 收集测试数据
-# 与提前设置的阈值作比较，作为ci通过的条件
-
 mkdir -p ${HOME}/.kube
 kube_config=$(echo "${ASK_CONFIG}")
 echo "${kube_config}" > ${HOME}/.kube/config
 export KUBECONFIG="${HOME}/.kube/config"
-
-# 检查集群连接
-echo "Checking Kubernetes cluster connection..."
-kubectl get nodes
-if [ $? -ne 0 ]; then
-  echo "Error: Cannot connect to Kubernetes cluster."
-  exit 1
-fi
 
 env_uuid=${REPO_NAME}-${GITHUB_RUN_ID}-${JOB_INDEX}
 
@@ -181,24 +167,24 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
   export ns
   export namesrv=$(kubectl get svc -n ${ns} | grep nameserver | awk '{print $1}'):9876
 
-  # 部署 consumer
+  # Deploy consumer
   consumer_cmd='sh mqadmin updatetopic -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP -c DefaultCluster && cd ../benchmark/ && sh consumer.sh -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP > /mnt/report/consumer_$TIMESTAMP.log 2>&1'
   deploy_pod "consumer" "$consumer_cmd"
 
-  # 部署 producer
+  # Deploy producer
   producer_cmd='cd ../benchmark/ && sh producer.sh -n $NAMESRV_ADDR -t TestTopic_$TIMESTAMP > /mnt/report/producer_$TIMESTAMP.log 2>&1'
   deploy_pod "producer" "$producer_cmd"
 
   echo "Waiting for benchmark test done..."
   sleep ${TEST_TIME}
 
-  # 停止benchmark测试
+  # Stop benchmark test
   consumer_pod_name="consumer"-${env_uuid}
   producer_pod_name="producer"-${env_uuid}
   kubectl exec -i ${consumer_pod_name} -n ${ns} -- /bin/sh -c "sh ../benchmark/shutdown.sh consumer"
   kubectl exec -i ${producer_pod_name} -n ${ns} -- /bin/sh -c "sh ../benchmark/shutdown.sh producer"
 
-  # 收集报告
+  # Collect reports
   path=$(pwd)
   mkdir -p ${path}/benchmark/
 
@@ -208,32 +194,30 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
   kubectl delete pod ${consumer_pod_name} -n ${ns}
   kubectl delete pod ${producer_pod_name} -n ${ns}
 
-  # 处理数据，生成图表
+  # Process data and generate charts
   cd ${path}/benchmark/
   cp /benchmark/log_analysis.py ./log_analysis.py
   python3 log_analysis.py
   rm -f log_analysis.py consumer_performance_data.csv producer_performance_data.csv
   ls
 
-  # 打印测试结果
-  echo "====================benchmark result===================="
-  echo "Consumer benchmark result: "
-  cat consumer_benchmark_result.csv || echo "Consumer benchmark file not found."
-  echo "===================================="
-  echo "Producer benchmark result: "
-  cat producer_benchmark_result.csv || echo "Producer benchmark file not found."
-  echo "========================================================"
-
-  # 判断 CI 是否通过
   consumer_benchmark="consumer_benchmark_result.csv"
   producer_benchmark="producer_benchmark_result.csv"
 
-  # Producer 阈值
+  # Print the benchmark result
+  echo "====================benchmark result===================="
+  echo "Consumer benchmark result: "
+  cat ${consumer_benchmark} || echo "Consumer benchmark file not found."
+  echo "===================================="
+  echo "Producer benchmark result: "
+  cat ${producer_benchmark} || echo "Producer benchmark file not found."
+  echo "========================================================"
+
+  # Benchmark threshold
   MIN_SEND_TPS_THRESHOLD=19000
   MAX_RT_MS_THRESHOLD=700
   AVG_RT_MS_THRESHOLD=4
 
-  # Consumer 阈值
   MIN_CONSUME_TPS_THRESHOLD=19000
   MAX_S2C_RT_MS_THRESHOLD=60
   MAX_B2C_RT_MS_THRESHOLD=60
@@ -249,7 +233,6 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
       ' "$file"
   }
 
-  # 获取相关指标
   consume_tps_min=$(get_csv_value "$consumer_benchmark" "Consume TPS" 2)
   max_s2c_rt=$(get_csv_value "$consumer_benchmark" "MAX(S2C) RT (ms)" 2)
   max_b2c_rt=$(get_csv_value "$consumer_benchmark" "MAX(B2C) RT (ms)" 2)
@@ -260,18 +243,17 @@ if [ "${ACTION}" = "performance-benchmark" ]; then
   max_rt=$(get_csv_value "$producer_benchmark" "Max RT (ms)" 2)
   avg_rt=$(get_csv_value "$producer_benchmark" "Average RT (ms)" 2)
 
-  # 校验 Consumer 阈值
+  # Validate the result
   consumer_tps_pass=$(awk -v a="$consume_tps_min" -v b="$MIN_CONSUME_TPS_THRESHOLD" 'BEGIN {print (a >= b) ? "true" : "false"}')
   consumer_latency_pass=$(awk -v max_s2c="$max_s2c_rt" -v max_b2c="$max_b2c_rt" -v avg_s2c="$avg_s2c_rt" -v avg_b2c="$avg_b2c_rt" \
       -v max_s2c_thr="$MAX_S2C_RT_MS_THRESHOLD" -v max_b2c_thr="$MAX_B2C_RT_MS_THRESHOLD" -v avg_s2c_thr="$AVG_S2C_RT_MS_THRESHOLD" -v avg_b2c_thr="$AVG_B2C_RT_MS_THRESHOLD" \
       'BEGIN {print (max_s2c <= max_s2c_thr && max_b2c <= max_b2c_thr && avg_s2c <= avg_s2c_thr && avg_b2c <= avg_b2c_thr) ? "true" : "false"}')
 
-  # 校验 Producer 阈值
   producer_tps_pass=$(awk -v a="$send_tps_min" -v b="$MIN_SEND_TPS_THRESHOLD" 'BEGIN {print (a >= b) ? "true" : "false"}')
   producer_latency_pass=$(awk -v max_rt="$max_rt" -v avg_rt="$avg_rt" -v max_rt_thr="$MAX_RT_MS_THRESHOLD" -v avg_rt_thr="$AVG_RT_MS_THRESHOLD" \
       'BEGIN {print (max_rt <= max_rt_thr && avg_rt <= avg_rt_thr) ? "true" : "false"}')
 
-  # 判断测试结果是否通过
+  # Check if CI passes
   if [ "$consumer_tps_pass" = "true" ] && [ "$consumer_latency_pass" = "true" ] && \
     [ "$producer_tps_pass" = "true" ] && [ "$producer_latency_pass" = "true" ]; then
       echo "All benchmarks passed."
