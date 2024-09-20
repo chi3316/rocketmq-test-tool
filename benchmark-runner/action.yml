@@ -74,7 +74,7 @@ inputs:
     description: 'avg-rt-ms-threshold'
     required: false
     default: '5'
-   max-2c-rt-ms-threshold:
+  max-2c-rt-ms-threshold:
     description: 'max-2c-rt-ms-threshold'
     required: false
     default: '85' 
