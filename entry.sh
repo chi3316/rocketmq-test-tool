@@ -131,7 +131,7 @@ spec:
   restartPolicy: Never
   containers:
   - name: ${test_pod_name}
-    image: registry.cn-guangzhou.aliyuncs.com/cc-aliyun/test-runner:v0.0.3
+    image: registry.cn-guangzhou.aliyuncs.com/cc-aliyun/test-runner:v1.4
     resources:
           limits:
             cpu: "8"
